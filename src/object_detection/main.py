@@ -34,4 +34,5 @@ def main(weights_path: str, input_source: str, video_path: str = None):
     cv2.destroyAllWindows()
 
 if __name__ == "__main__":
+    # Use v5_model.pt (model from last year) on the video (trash.mp4)
     main('v5_model.pt', 'video', 'trash.mp4')

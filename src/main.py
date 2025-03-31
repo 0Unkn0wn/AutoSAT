@@ -6,6 +6,13 @@ from src.can_interface.can_controller import CarCanController, CarType, HunterCo
 from src.can_interface.bus_connection import connect_to_can_interface
 from car_variables import KartGearBox
 
+from src.line_detection.line_detection import LineDetector
+from src.line_detection.navigation import NavigationSystem
+from src.line_detection.steering import SteeringController
+
+from src.object_detection.detection import ObjectDetection
+from src.object_detection.traffic import TrafficManager
+
 async def main() -> None:
 
     can_bus = connect_to_can_interface(0)
