@@ -14,7 +14,7 @@ class AutonomousMode(IControlMode):
         self.car_type = car_type
         self.can_controller = None
         self.nav = LineFollowingNavigation(width=848, height=480)
-        self.object_detector = ObjectDetection(weights_path='v5_model.pt', input_source='video')
+        self.object_detector = ObjectDetection(weights_path='../../../assets/v5_model.pt', input_source='video')
         self.traffic_manager = TrafficManager()
         self.can_bus = connect_to_can_interface(0)
 
@@ -44,11 +44,10 @@ class AutonomousMode(IControlMode):
         finally:
             cap.release()
             cv2.destroyAllWindows()
+
     async def stop(self) -> None:
-        if self.car_type == CarType.hunter:
-            await self.can_controller.send_control(0, True, HunterControlMode.idle_mode)
-        else:
-            await self.can_controller.send_control(100, True, HunterControlMode.idle_mode)
+        await self.can_controller.send_control(0 if self.car_type == CarType.hunter else 100, True, HunterControlMode.idle_mode)
+        if self.car_type != CarType.hunter:
             await self.can_controller.send_movement(0, KartGearBox.neutral, 0)
         self.can_bus.shutdown()
         print("Stopping autonomous mode.")
