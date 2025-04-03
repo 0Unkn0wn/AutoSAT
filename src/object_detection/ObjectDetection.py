@@ -1,6 +1,6 @@
 import cv2
-from detection import ObjectDetection
-from traffic import TrafficManager
+from Detection import ObjectDetection
+from TrafficDetection import TrafficManager
 
 def main(weights_path: str, input_source: str, video_path: str = None):
     object_detector = ObjectDetection(weights_path, input_source)

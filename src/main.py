@@ -10,9 +10,9 @@ from src.can_interface.bus_connection import connect_to_can_interface
 from car_variables import KartGearBox
 
 
-from src.line_detection.main import LineFollowingNavigation
-from src.object_detection.detection import ObjectDetection
-from src.object_detection.traffic import TrafficManager
+from src.line_detection.LineDetection import LineFollowingNavigation
+from src.object_detection.Detection import ObjectDetection
+from src.object_detection.TrafficDetection import TrafficManager
 
 def cameraLoop():
 
@@ -66,6 +66,8 @@ async def main() -> None:
                 speed_limit = traffic_state['speed_limit']
                 print(f"Traffic State: {traffic_state}, Saw Red Light: {saw_red_light}, Speed Limit: {speed_limit}")
                 cv2.imshow("Line Following", viz_img)
+
+
 
         # print(f"{steering} \t {throttle}")
     finally:

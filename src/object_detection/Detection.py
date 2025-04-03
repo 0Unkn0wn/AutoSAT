@@ -5,7 +5,7 @@ from yolov5.models.common import DetectMultiBackend
 from yolov5.utils.general import non_max_suppression, scale_boxes, check_img_size
 from yolov5.utils.torch_utils import select_device
 
-from traffic import TrafficManager
+from TrafficDetection import TrafficManager
 
 
 class ObjectDetection:

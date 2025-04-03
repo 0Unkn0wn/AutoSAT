@@ -5,7 +5,7 @@ from shapely.geometry import LineString
 from itertools import combinations
 
 from src.line_detection.utils import getColorMask, getRoiMask, filterContours, filterWhite
-from src.line_detection.line_processor import clusterLines, combineLines, getLines
+from src.line_detection.LineProcessor import clusterLines, combineLines, getLines
 
 class LineFollowingNavigation:
     def __init__(self, width=848, height=480, scale=1):
