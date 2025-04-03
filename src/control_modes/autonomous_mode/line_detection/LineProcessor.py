@@ -3,7 +3,7 @@ import numpy as np
 from shapely.geometry import LineString
 from itertools import combinations
 
-from src.line_detection.utils import getColorMask, getRoiMask, filterContours, filterWhite
+from src.control_modes.autonomous_mode.line_detection.utils import getColorMask, getRoiMask, filterContours, filterWhite
 import cv2
 
 def clusterLines(lines, th_dis, th_ang):

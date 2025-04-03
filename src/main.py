@@ -10,9 +10,9 @@ from src.can_interface.bus_connection import connect_to_can_interface
 from car_variables import KartGearBox
 
 
-from src.line_detection.LineDetection import LineFollowingNavigation
-from src.object_detection.Detection import ObjectDetection
-from src.object_detection.TrafficDetection import TrafficManager
+from src.control_modes.autonomous_mode.line_detection.LineDetection import LineFollowingNavigation
+from src.control_modes.autonomous_mode.object_detection.Detection import ObjectDetection
+
 
 def cameraLoop():
 
