@@ -247,23 +247,23 @@ class LineFollowingNavigation:
 
 if __name__ == "__main__":
     nav = LineFollowingNavigation(width=848, height=480)
-    cap = cv2.VideoCapture("trash.mp4")  # Replace with your actual video file
-    
+    cap = cv2.VideoCapture("../../../../assets/trash.mp4")
+
     if not cap.isOpened():
         print("Error: Could not open video file.")
         exit()
-    
+
     while cap.isOpened():
         ret, frame = cap.read()
         if not ret:
             break
-        
+
         steering_angle, speed, viz_img, end_x = nav.run(frame)
-        
+
         cv2.imshow("Line Following", viz_img)
-        
+
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
-    
+
     cap.release()
     cv2.destroyAllWindows()
