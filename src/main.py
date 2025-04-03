@@ -6,15 +6,11 @@ from src.can_interface.can_controller import CarCanController, CarType, HunterCo
 from src.can_interface.bus_connection import connect_to_can_interface
 from car_variables import KartGearBox
 
-from src.line_detection.line_detection import LineDetector
-from src.line_detection.navigation import NavigationSystem
-from src.line_detection.steering import SteeringController
-
 from src.object_detection.detection import ObjectDetection
 from src.object_detection.traffic import TrafficManager
 
-async def main() -> None:
 
+async def main() -> None:
     can_bus = connect_to_can_interface(0)
     can_controller = CarCanController(can_bus, CarType.hunter)
 
@@ -43,9 +39,15 @@ async def main() -> None:
             message = await can_controller.monitor_bus()
 
             print(f"{steering} \t {throttle} \t {message}")
+
+
+
+
+
             # print(f"{steering} \t {throttle}")
     finally:
         gamepad.disconnect()
+
 
 if __name__ == "__main__":
     asyncio.run(main())
