@@ -4,7 +4,6 @@ import os
 from PIL import Image, ImageDraw
 from shapely.geometry import LineString
 from itertools import combinations
-import random
 from time import sleep
 
 #import onnxruntime as rt
@@ -12,30 +11,41 @@ import time
 import can
 import struct
 
-from typing import Optional, Dict, List, Literal, Tuple
-import video
+from typing import Optional, Dict, List
+
 import sys
 import math
 
 #for recording:
 from datetime import datetime
-from collections import namedtuple
 from queue import Queue
-import threading
 
 #object detection
 import shutil
 import json
-from pathlib import Path
 import torch
-from yolov5.models.common import DetectMultiBackend
-from yolov5.utils.general import non_max_suppression, scale_boxes, check_img_size
-from yolov5.utils.torch_utils import select_device
+
+import platform
+from pathlib import Path
+
+FILE = Path(__file__).resolve()
+ROOT = FILE.parents[0]  # YOLOv5 root directory
+if str(ROOT) not in sys.path:
+    sys.path.append(str(ROOT))  # add ROOT to PATH
+if platform.system() != "Windows":
+    ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
+
+from models.common import DetectMultiBackend
+from utils.general import non_max_suppression, scale_boxes, check_img_size
+from utils.torch_utils import select_device
+import video as video
+
 import threading
 from collections import deque
 import collections
 import csv
 import psutil
+
 CAN_MSG_SENDING_SPEED = .040
 height = 480
 width = 848
@@ -528,9 +538,11 @@ def findTarget(llines, rlines, horizonh, img, wl = 1, wr = 1, weight = 1, bias =
     if draw == 1:
         cv2.circle(drawimg,(int(width/2),horizonh), 1, (0,0,255), 3)
         drawimg = cv2.cvtColor(drawimg, cv2.COLOR_HSV2BGR)
-        cv2.imshow("SHOW", drawimg)
+        cv2.cvtColor(drawimg, cv2.COLOR_HSV2BGR)
 
+        # cv2.imshow("SHOW", drawimg)
     return target
+
 
 def getHorizon(img):
     lines = getLines(img) 
@@ -564,36 +576,57 @@ def getHorizon(img):
         print("HORIZON NOT FOUND DUE TO NO LINES DETECTED")
     return 0
 
-
-
-
 def initialize_cameras() -> Dict[str, cv2.VideoCapture]:
     """
-    Initialize the opencv camera capture devices.
+    Initialize the opencv camera capture devices. If no camera config is found or
+    if cameras fail to open, fall back to using a sample mp4 video.
     """
     config: video.CamConfig = video.get_camera_config()
-    if not config:
-        print('No valid video configuration found!', file=sys.stderr)
-        exit(1)
     cameras: Dict[str, cv2.VideoCapture] = dict()
+    fallback_video_path = "src/control_modes/autonomous_mode/old_twente_code/recording 13-06-2024 11-54-31.mp4"
+
+    def load_fallback():
+        print('[WARNING] No valid video configuration found. Falling back to MP4 video file.', file=sys.stderr)
+        if not os.path.exists(fallback_video_path):
+            print(f"[ERROR] Fallback video {fallback_video_path} does not exist.", file=sys.stderr)
+            exit(1)
+        capture = cv2.VideoCapture(fallback_video_path)
+        if not capture.isOpened():
+            print(f"[ERROR] Could not open fallback video {fallback_video_path}.", file=sys.stderr)
+            exit(1)
+        capture.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+        capture.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+        return {"front": capture}
+
+    if not config:
+        return load_fallback()
+
     for camera_type, path in config.items():
         capture = cv2.VideoCapture(path)
+        if not capture.isOpened():
+            print(f"[WARNING] Camera {camera_type} at {path} could not be opened.", file=sys.stderr)
+            continue
         capture.set(cv2.CAP_PROP_FRAME_WIDTH, width)
         capture.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
         capture.set(cv2.CAP_PROP_AUTOFOCUS, 0)
         capture.set(cv2.CAP_PROP_FOCUS, 0)
-        capture.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG')) #important to set right codec to enable 60fps
-        capture.set(cv2.CAP_PROP_FPS, 30) #make 60 to enable 60FPS
-        exposure = setExposure(capture)#83
+        capture.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+        capture.set(cv2.CAP_PROP_FPS, 30)
+        exposure = setExposure(capture)
         capture.set(cv2.CAP_PROP_AUTO_EXPOSURE, 1)
         cameras[camera_type] = capture
+
+    if not cameras:
+        return load_fallback()
+
     return cameras
+
 
 def initialize_can() -> can.Bus:
     """
     Set up the can bus interface and apply filters for the messages we're interested in.
     """
-    bus = can.Bus(interface='socketcan', channel='can0', bitrate=500000)
+    bus = can.Bus(interface='virtual', channel='vcan0', bitrate=500000)
     bus.set_filters([
         {'can_id': 0x110, 'can_mask': 0xfff, 'extended': False}, # Brake
         {'can_id': 0x220, 'can_mask': 0xfff, 'extended': False}, # Steering
@@ -790,7 +823,7 @@ def initialize(weights_path, output_dir_base):
     print("Done optimizing model")
     
     # Check if GUI is available
-    gui_available = False
+    gui_available = True
 
     return quantized_model, device, gui_available
 
@@ -995,7 +1028,8 @@ def traffic_object_detection(frame_queue, state_queue, model, device, stop_event
     queue and a state queue, it constantly takes frames from the frames queue and then appends resulting states
     in the states queue
     """
-    
+    prev_frame_time = 0
+
     # Set distance threshold for red light/traffic sign detection
     red_light_distance_threshold = 4.5  # meters
     speed_sign_distance_threshold = 10  # meters
@@ -1027,13 +1061,18 @@ def traffic_object_detection(frame_queue, state_queue, model, device, stop_event
     
         # Create a new folder named with the current date and time
     now = datetime.now()
+
+    log_root = "logs"
+    os.makedirs(log_root, exist_ok=True)
     folder_name = now.strftime("%m_%d_%H")
-    os.makedirs(folder_name, exist_ok=True)
+    folder_path = os.path.join(log_root, folder_name)
+    os.makedirs(folder_path, exist_ok=True)
+
     
     # Create a new CSV file within the new folder, also named with the current date and time
     file_name = now.strftime("%Y_%m_%d_%H_%M_%S") + "_detection_log.csv"
-    file_path = os.path.join(folder_name, file_name)
-    
+    file_path = os.path.join(folder_path, file_name)
+
     # Define the headers for the CSV file
     headers = ["detections", "detect_processing_time", "traffic_processing_time", 
                "year", "month", "day", "hour", "minute", "second", "state", "cpu_usage"]
@@ -1055,8 +1094,27 @@ def traffic_object_detection(frame_queue, state_queue, model, device, stop_event
 
                 # Process the frame and create a new state
                 dets = process_single_image(model, device, frame)
-                
-                
+
+                # Visualize detections
+                if dets:
+                    for det in dets:
+                        x1, y1, x2, y2 = map(int, det['bbox'])
+                        label = f"{det['class']} ({det['distance']:.1f}m)"
+                        cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                        cv2.putText(frame, label, (x1, y1 - 10),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+
+                # FPS overlay
+                new_frame_time = time.time()
+                fps = 1 / (new_frame_time - prev_frame_time + 1e-8)
+                prev_frame_time = new_frame_time
+                cv2.putText(frame, f"FPS: {fps:.2f}", (10, 30),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
+
+                # Show frame
+                cv2.imshow("Live Detection Feed", frame)
+                cv2.waitKey(1)
+
                 # Record the end time for processing and calculate the duration
                 end_time = time.time()
                 detect_processing_time = end_time - start_time
@@ -1252,7 +1310,7 @@ def adjust_throttle(state_queue, throttle_queue, max_car_speed=20):
             }
 
             # Append the data to a JSON log file
-            with open("throttle_log.json", "a") as f:
+            with open(os.path.join("logs", "throttle_log.json"), "a") as f:
                 f.write(json.dumps(throttle_info) + "\n")
 
         time.sleep(0.03)
@@ -1294,11 +1352,16 @@ def main():
     front_camera = cameras["front"]
     
     print('Creating folders...', file=sys.stderr)
-    recording_folder = "recording " + datetime.now().strftime("%d-%m-%Y %H-%M-%S")
-    if not os.path.exists(recording_folder):
-        os.mkdir(recording_folder)
-        for subdir in cameras.keys():
-            os.mkdir(os.path.join(recording_folder, subdir))
+
+    log_root = "logs"
+    os.makedirs(log_root, exist_ok=True)
+
+    recording_folder_name = "recording " + datetime.now().strftime("%d-%m-%Y %H-%M-%S")
+    recording_folder = os.path.join(log_root, recording_folder_name)
+    os.makedirs(recording_folder, exist_ok=True)
+    for subdir in cameras.keys():
+        os.makedirs(os.path.join(recording_folder, subdir), exist_ok=True)
+
 
     can_listener = CanListener(bus)
     can_listener.start_listening()
@@ -1314,8 +1377,8 @@ def main():
     frames: Dict[str, cv2.Mat] = dict()
     
     #object detection init
-    weights_path = 'v5_model.pt'  # Adjust as necessary
-    output_directory_base = 'detection_frames'
+    weights_path = 'src/control_modes/autonomous_mode/old_twente_code/v5_model.pt'  # Adjust as necessary
+    output_directory_base = 'logs/detection_frames'
     model, device, gui_available = initialize(weights_path, output_directory_base)
     print("GUI available: ", gui_available)
     
@@ -1366,8 +1429,12 @@ def main():
         start_time = time.time()
         frame_count = 0
       
-        _, frame = front_camera.read()
-        frame = cv2.resize(frame, (int(width*scale), int(height*scale)))
+        ret, frame = front_camera.read()
+        if not ret or frame is None:
+            print("[ERROR] Failed to read frame! Substituting black frame...")
+            frame = np.zeros((height, width, 3), dtype=np.uint8)
+        else:
+            frame = cv2.resize(frame, (int(width * scale), int(height * scale)))
         hx, hy = getHorizon(frame)
         print("horizon found at",hy)
         countL = 0

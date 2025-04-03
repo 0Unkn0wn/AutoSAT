@@ -18,7 +18,7 @@ import struct
 import time
 import threading
 import inspect
-from _pyrepl.readline import raw_input
+# from _pyrepl.readline import raw_input
 
 
 def available(joystickNumber = 0):
@@ -567,10 +567,10 @@ deviceNames.sort()
 
 if __name__ == "__main__":
     # Python 2/3 compatibility
-    try:
-        input = raw_input
-    except NameError:
-        pass
+    # try:
+    #     input = raw_input
+    # except NameError:
+    #     pass
 
     # ANSI colour code sequences
     GREEN = '\033[0;32m'
