@@ -36,3 +36,7 @@ class KartGearBox(IntEnum):
 class CarType(IntEnum):
     kart = 0
     hunter = 1
+
+class ControlMode(IntEnum):
+    automatic = 0
+    manual = 1
