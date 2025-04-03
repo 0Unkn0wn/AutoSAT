@@ -243,6 +243,12 @@ class LineFollowingNavigation:
         return steering_angle, speed, None, None, None
 
 
+
+    def process(self, frame, base_speed=100, draw=1):
+        """Process a single frame and return the results."""
+        steering_angle, speed, viz_img, end_x = self.run(frame, base_speed, draw)
+        return steering_angle, speed, viz_img, end_x
+
 if __name__ == "__main__":
     nav = LineFollowingNavigation(width=848, height=480)
     cap = cv2.VideoCapture("trash.mp4")  # Replace with your actual video file

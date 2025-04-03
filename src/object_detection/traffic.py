@@ -9,6 +9,6 @@ class TrafficManager:
             if det['class'] == 'Traffic Light Red' and det['distance'] < self.red_light_threshold:
                 saw_red_light = True
             elif det['class'].startswith('Speed-limit'):
-                speed = int(det['class'].split('-')[2].replace('km', ''))
+                speed = int(det['class'].split('-')[2].replace('km-h', ''))
                 self.speed_limit = min(self.speed_limit, speed)
         return {'red_light': saw_red_light, 'speed_limit': self.speed_limit}

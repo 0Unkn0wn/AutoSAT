@@ -5,6 +5,9 @@ from yolov5.models.common import DetectMultiBackend
 from yolov5.utils.general import non_max_suppression, scale_boxes, check_img_size
 from yolov5.utils.torch_utils import select_device
 
+from traffic import TrafficManager
+
+
 class ObjectDetection:
     def __init__(self, weights_path: str, input_source: str = 'video'):
         self.device = select_device('cpu')
@@ -21,7 +24,7 @@ class ObjectDetection:
             'Person': (0.5, 1.9),
             'Object': (0.5, 0.5),
         }
-        
+
         self.labels = {
             0: 'Car',
             1: 'Person',
@@ -31,6 +34,7 @@ class ObjectDetection:
             5: 'Traffic Light Green',
             6: 'Traffic Light Red'
         }
+        self.traffic_manager = TrafficManager()
 
     def estimate_distance(self, x1, y1, x2, y2, class_label):
         focal_length = 540
@@ -44,14 +48,14 @@ class ObjectDetection:
     def detect_objects(self, frame):
         img_size = check_img_size(frame.shape[:2], s=32)
         img = cv2.resize(frame, (img_size[1], img_size[0]))
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         img = img.transpose((2, 0, 1))
         img = torch.from_numpy(np.expand_dims(img, axis=0)).float() / 255.0
         img = img.to(self.device)
 
         with torch.no_grad():
             pred = self.model(img)
-        
+
         det = non_max_suppression(pred, 0.7, 0.45, max_det=1000)[0]
         detections = []
         if det is not None and len(det):
@@ -62,5 +66,10 @@ class ObjectDetection:
                 class_label = self.labels.get(class_id, 'Unknown')
                 if class_label in self.real_dims:
                     distance = self.estimate_distance(x1, y1, x2, y2, class_label)
-                    detections.append({'class': class_label, 'confidence': conf.item(), 'bbox': [x1, y1, x2, y2], 'distance': distance})
+                    detections.append({'class': class_label, 'confidence': conf.item(), 'bbox': [x1, y1, x2, y2],'distance': distance})
         return detections
+
+    def process(self, frame):
+        detections = self.detect_objects(frame)
+        traffic_state = self.traffic_manager.process_traffic_signals(detections)
+        return traffic_state, detections
